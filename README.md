@@ -4,7 +4,7 @@
 
 *Clean, modern settings menus for Dear ImGui: a monochrome theme (dark and light), ready-made widgets, smooth motion, built-in icons and Spanish / English / Portuguese support. Header-only, drop-in.*
 
-![Ventana de ajustes de ImGui Moderno en modo oscuro y claro](misc/moderno/docs/images/hero.png)
+![Ventana de ajustes de ImGui Moderno en modo oscuro y claro](misc/moderno/docs/images/hero-v2.png)
 
 Dear ImGui es rapidísimo para crear interfaces, pero lo que sale por defecto está pensado para desarrolladores: opciones amontonadas, casillas diminutas, nombres técnicos y un azul saturado que hoy se ve anticuado. Cuando esa interfaz llega a jugadores (el menú de un emulador, el instalador de un port, el overlay de un juego), cuesta entenderla.
 
@@ -23,17 +23,17 @@ Dear ImGui es rapidísimo para crear interfaces, pero lo que sale por defecto es
 - **Header-only**: un archivo, `imgui_moderno.h`. Requiere Dear ImGui 1.92 o posterior.
 - **Guía de diseño y de escritura** para que la interfaz no solo se vea bien, sino que también se lea bien.
 
-![Animaciones: la pastilla del selector y la selección de la barra lateral se deslizan](misc/moderno/docs/images/motion.gif)
+![Animaciones: la pastilla del selector y la selección de la barra lateral se deslizan](misc/moderno/docs/images/motion-v2.gif)
 
 | Modo oscuro | Modo claro |
 |---|---|
-| ![Modo oscuro](misc/moderno/docs/images/dark.png) | ![Modo claro](misc/moderno/docs/images/light.png) |
+| ![Modo oscuro](misc/moderno/docs/images/dark-v2.png) | ![Modo claro](misc/moderno/docs/images/light-v2.png) |
 | **Avisos con qué pasó, qué hacer y código** | **Confirmación antes de acciones destructivas** |
-| ![Aviso de error en la página de controles](misc/moderno/docs/images/controls.png) | ![Modal de confirmación](misc/moderno/docs/images/modal.png) |
+| ![Aviso de error en la página de controles](misc/moderno/docs/images/controls-v2.png) | ![Modal de confirmación](misc/moderno/docs/images/modal-v2.png) |
 
 **Español, English, Português**: el idioma se cambia al momento desde *Accesibilidad*.
 
-![La misma ventana en español, inglés y portugués](misc/moderno/docs/images/languages.png)
+![La misma ventana en español, inglés y portugués](misc/moderno/docs/images/languages-v2.png)
 
 ## Así se usa
 
