@@ -16,6 +16,11 @@ misc/freetype/
   Font atlas builder/rasterizer using FreeType instead of stb_truetype.
   Benefit from better FreeType rasterization, in particular for small fonts.
 
+misc/moderno/
+  "ImGui Moderno" design system: theme (dark/light) + widgets for friendly settings menus
+  (toggle switch, segmented control, slider, notices, confirm modal, sidebar settings window).
+  See misc/moderno/README.md and examples/example_moderno_win32_directx11/.
+
 misc/single_file/
   Single-file header stub.
   We use this to validate compiling all *.cpp files in a same compilation unit.
