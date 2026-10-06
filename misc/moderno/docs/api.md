@@ -204,13 +204,15 @@ ImGuiModerno::EndSettingsWindow();           // siempre, como ImGui::End()
 
 ## 10. Movimiento
 
-Todas las animaciones duran `M::motion` (120 ms) y se calculan con `DeltaTime`, así que no dependen de los FPS:
+Todas las animaciones duran `M::motion` (120 ms), siguen una curva de entrada y salida suaves (cúbica) y se calculan con `DeltaTime`, así que no dependen de los FPS. Empiezan en el mismo frame del clic y, si el destino cambia a mitad de camino, salen desde donde están:
 
 - `ToggleSwitch`: la perilla y el color de la pista.
 - `Segmented`: la pastilla se desliza entre opciones; el texto se recorta con su forma (oscuro dentro, gris fuera) y en «Personalizado» (`*v = -1`) se desvanece.
 - `SidebarItem`: el fondo del ítem seleccionado se desliza a la nueva categoría.
 
 No hace falta activar nada: los widgets guardan su estado de animación en el `ImGuiStorage` de la ventana.
+
+La barra lateral dibuja en dos capas (`ImDrawList::ChannelsSplit`) entre `BeginSidebar()` y `EndSidebar()`: no uses `ChannelsSplit` propio dentro de ese bloque.
 
 ## 11. Demo
 

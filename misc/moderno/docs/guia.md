@@ -140,7 +140,9 @@ Todo el texto cumple al menos 4.5:1 de contraste sobre sus fondos en ambos modos
 
 ## Movimiento
 
-- Una sola duración para todo: **120 ms** (`M::motion`), con salida suave. Rápido para no hacer esperar a nadie y suficiente para que el ojo siga el cambio.
+- Una sola duración para todo: **120 ms** (`M::motion`), con curva de entrada y salida suaves (cúbica): arranca despacio, acelera y frena, sin saltos en el primer fotograma. Rápido para no hacer esperar a nadie y suficiente para que el ojo siga el cambio.
+- La animación empieza en el mismo frame del clic, y si el destino cambia a mitad de camino sale desde donde está.
+- Los fondos de hover quedan debajo de lo que se mueve: la pastilla los cubre al llegar, nunca desaparecen de golpe.
 - Solo se anima lo que cambia de sitio o de estado: la perilla del interruptor, la pastilla del selector segmentado y el fondo de la categoría seleccionada.
 - Nada se anima en bucle ni para llamar la atención. Sin rebotes ni efectos elásticos.
 

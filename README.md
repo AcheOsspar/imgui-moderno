@@ -23,7 +23,7 @@ Dear ImGui es rapidísimo para crear interfaces, pero lo que sale por defecto es
 - **Header-only**: un archivo, `imgui_moderno.h`. Requiere Dear ImGui 1.92 o posterior.
 - **Guía de diseño y de escritura** para que la interfaz no solo se vea bien, sino que también se lea bien.
 
-![Animaciones: la pastilla del selector y la selección de la barra lateral se deslizan](misc/moderno/docs/images/motion-v2.gif)
+![Animaciones: la pastilla del selector y la selección de la barra lateral se deslizan](misc/moderno/docs/images/motion-v3.gif)
 
 | Modo oscuro | Modo claro |
 |---|---|

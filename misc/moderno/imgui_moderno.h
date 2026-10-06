@@ -303,11 +303,25 @@ namespace detail {
         GImGui->NextItemData.ClearFlags();   // ya se usó el ancho
     }
 
-    // Acerca 'cur' a 'target' con la duración de movimiento del sistema (~95 % en M::motion).
-    inline float Approach(float cur, float target, float snap) {
-        const float k = 1.0f - std::exp(-ImGui::GetIO().DeltaTime * 3.0f / M::motion);
-        const float v = cur + (target - cur) * k;
-        return (std::fabs(target - v) < snap) ? target : v;
+    // Curva de movimiento del sistema: entrada y salida suaves (cúbica). Arranca despacio, acelera y frena,
+    // así el primer fotograma no da un salto.
+    inline float Ease(float p) {
+        p = ImClamp(p, 0.0f, 1.0f);
+        return p < 0.5f ? 4.0f * p * p * p : 1.0f - std::pow(-2.0f * p + 2.0f, 3.0f) * 0.5f;
+    }
+
+    // Anima un valor hacia 'target' en M::motion con Ease(). Guarda en 'st' el origen, el destino y el tiempo.
+    // Si el destino cambia a mitad de camino, la nueva animación sale desde donde está ahora (sin saltos).
+    // 'snap' = true coloca el valor directamente en el destino (primer uso).
+    inline float Animate(ImGuiStorage* st, ImGuiID key, float target, bool snap = false) {
+        const ImGuiID kFrom = key, kTo = key ^ 0x9E3779B9u, kTime = key ^ 0x7F4A7C15u, kInit = key ^ 0x2545F491u;
+        float from = st->GetFloat(kFrom, target), to = st->GetFloat(kTo, target), t = st->GetFloat(kTime, M::motion);
+        if (snap || !st->GetBool(kInit, false)) { from = to = target; t = M::motion; st->SetBool(kInit, true); }
+        auto valueAt = [&](float time) { return from + (to - from) * Ease(time / M::motion); };
+        if (target != to) { from = valueAt(t); to = target; t = 0.0f; }
+        t = ImMin(t + ImGui::GetIO().DeltaTime, M::motion);
+        st->SetFloat(kFrom, from); st->SetFloat(kTo, to); st->SetFloat(kTime, t);
+        return valueAt(t);
     }
 
     // Clave de almacenamiento fija por ventana (no depende de PushID del usuario).
@@ -343,6 +357,7 @@ inline bool ToggleSwitch(const char* id, bool* v) {
     t = ImClamp(t + (*v ? 1.0f : -1.0f) * ImGui::GetIO().DeltaTime / M::motion, 0.0f, 1.0f);
     st->SetFloat(key, t);
 
+    t = detail::Ease(t);   // la posición sigue la curva del sistema; el estado guardado avanza lineal
     const float y = p.y + (boxH - h) * 0.5f;
     ImDrawList* dl = ImGui::GetWindowDrawList();
     ImVec4 track = ImLerp(col.bgFrameActive, col.accent, t);
@@ -365,47 +380,55 @@ inline bool Segmented(const char* id, int* v, const char* const items[], int cou
     const float H = M::controlH * dpi, pad = M::segPad * dpi;
     const ImVec2 p = ImGui::GetCursorScreenPos();
     ImDrawList* dl = ImGui::GetWindowDrawList();
-    dl->AddRectFilled(p, ImVec2(p.x + width, p.y + H), detail::U32(col.bgFrame), M::radiusMd * dpi);
+    IM_ASSERT(count > 0 && count <= 8 && "Segmented: de 2 a 4 opciones (máximo 8)");
 
     bool changed = false;
     const float segW = (width - 2 * pad) / (float)count;
     const ImVec2 segSize(segW, H - 2 * pad);
     ImGui::PushID(id);
 
+    // Pasada 1: interacción. Así un clic mueve la pastilla en este mismo frame, sin esperar al siguiente.
+    bool hovered[8] = {};
+    for (int i = 0; i < count; i++) {
+        ImGui::SetCursorScreenPos(ImVec2(p.x + pad + segW * i, p.y + pad));
+        ImGui::PushID(i);
+        if (ImGui::InvisibleButton("##seg", segSize) && *v != i) { *v = i; changed = true; }
+        hovered[i] = ImGui::IsItemHovered();
+        ImGui::PopID();
+    }
+
     // Pastilla del segmento activo: se desliza entre opciones y se desvanece en «Personalizado» (*v = -1).
     ImGuiStorage* st = ImGui::GetStateStorage();
     const ImGuiID keyX = ImGui::GetID("##pastillaX"), keyA = ImGui::GetID("##pastillaA");
     const bool hasSel = (*v >= 0 && *v < count);
-    const float targetX = hasSel ? segW * (float)*v : st->GetFloat(keyX, 0.0f);
-    const float pillX = detail::Approach(st->GetFloat(keyX, targetX), targetX, 0.25f);
-    const float pillA = detail::Approach(st->GetFloat(keyA, hasSel ? 1.0f : 0.0f), hasSel ? 1.0f : 0.0f, 0.01f);
-    st->SetFloat(keyX, pillX);
-    st->SetFloat(keyA, pillA);
+    const ImGuiID keyLast = ImGui::GetID("##pastillaUltima");
+    if (hasSel) st->SetFloat(keyLast, segW * (float)*v);
+    const float targetX = hasSel ? segW * (float)*v : st->GetFloat(keyLast, 0.0f);
+    const float pillX = detail::Animate(st, keyX, targetX);
+    const float pillA = detail::Animate(st, keyA, hasSel ? 1.0f : 0.0f);
+
+    // Pasada 2: dibujo. Fondo, hover (debajo de la pastilla, así ningún fondo desaparece de golpe), pastilla y texto.
+    dl->AddRectFilled(p, ImVec2(p.x + width, p.y + H), detail::U32(col.bgFrame), M::radiusMd * dpi);
+    for (int i = 0; i < count; i++) {
+        if (!hovered[i]) continue;
+        const ImVec2 a(p.x + pad + segW * i, p.y + pad);
+        dl->AddRectFilled(a, ImVec2(a.x + segSize.x, a.y + segSize.y), detail::U32(col.bgFrameHover), M::radiusSm * dpi);
+    }
+    const ImRect pill(p.x + pad + pillX, p.y + pad, p.x + pad + pillX + segW, p.y + pad + segSize.y);
     if (pillA > 0.0f) {
         ImVec4 c = col.accent; c.w *= pillA;
-        const ImVec2 a(p.x + pad + pillX, p.y + pad);
-        dl->AddRectFilled(a, ImVec2(a.x + segSize.x, a.y + segSize.y), detail::U32(c), M::radiusSm * dpi);
+        dl->AddRectFilled(pill.Min, pill.Max, detail::U32(c), M::radiusSm * dpi);
     }
 
     PushTextStyle(TextStyle_Label);
     for (int i = 0; i < count; i++) {
         const ImVec2 a(p.x + pad + segW * i, p.y + pad);
-        ImGui::SetCursorScreenPos(a);
-        ImGui::PushID(i);
-        if (ImGui::InvisibleButton("##seg", segSize) && *v != i) { *v = i; changed = true; }
-        ImGui::PopID();
-        const bool hovered = ImGui::IsItemHovered();
         const ImVec2 b(a.x + segSize.x, a.y + segSize.y);
-        // Cuánto cubre la pastilla a este segmento (0 a 1): decide si se dibuja el fondo de hover.
-        const float cover = pillA * ImClamp(1.0f - std::fabs(pillX - segW * i) / segW, 0.0f, 1.0f);
-        if (hovered && cover < 0.05f)
-            dl->AddRectFilled(a, b, detail::U32(col.bgFrameHover), M::radiusSm * dpi);
-        // Texto en dos pasadas: color normal fuera de la pastilla y on-accent recortado a la pastilla,
+        // Texto en dos partes: color normal fuera de la pastilla y on-accent recortado a ella,
         // así se lee bien también mientras se desliza.
         const ImVec2 ts = ImGui::CalcTextSize(items[i]);
         const ImVec2 t0(a.x + M::space2 * dpi, a.y), t1(b.x - M::space2 * dpi, b.y);
         const ImRect bb(a, b);
-        const ImRect pill(p.x + pad + pillX, a.y, p.x + pad + pillX + segW, b.y);
         ImRect inPill = bb; inPill.ClipWith(pill);
         const bool pillHere = pillA > 0.0f && inPill.GetWidth() > 0.0f;
         ImRect outPill = bb;   // la parte del segmento que la pastilla no cubre (a un lado u otro)
@@ -414,13 +437,12 @@ inline bool Segmented(const char* id, int* v, const char* const items[], int cou
             else                        outPill.Max.x = ImMax(bb.Min.x, pill.Min.x);
         }
         if (outPill.GetWidth() > 0.0f) {
-            ImGui::PushStyleColor(ImGuiCol_Text, hovered ? col.textPrimary : col.textSecondary);
+            ImGui::PushStyleColor(ImGuiCol_Text, hovered[i] ? col.textPrimary : col.textSecondary);
             ImGui::RenderTextClipped(t0, t1, items[i], nullptr, &ts, ImVec2(0.5f, 0.5f), &outPill);
             ImGui::PopStyleColor();
         }
         if (pillHere) {
-            ImVec4 on = ImLerp(col.textSecondary, col.onAccent, pillA);
-            ImGui::PushStyleColor(ImGuiCol_Text, on);
+            ImGui::PushStyleColor(ImGuiCol_Text, ImLerp(col.textSecondary, col.onAccent, pillA));
             ImGui::RenderTextClipped(t0, t1, items[i], nullptr, &ts, ImVec2(0.5f, 0.5f), &inPill);
             ImGui::PopStyleColor();
         }
@@ -1098,20 +1120,16 @@ inline void BeginSidebar(const char* title) {
     ImGui::BeginChild("##sidebar", ImVec2(M::sidebarW * dpi, 0), ImGuiChildFlags_AlwaysUseWindowPadding, ImGuiWindowFlags_NoScrollbar);
     ImGui::PopStyleVar();
 
-    // Fondo del ítem seleccionado: se desliza hasta la posición que SidebarItem() guardó el frame anterior.
+    // Dos capas: 0 = fondos (hover y selección animada), 1 = íconos y texto. La selección se dibuja en
+    // EndSidebar(), cuando ya se sabe qué ítem está seleccionado o se acaba de pulsar en este mismo frame.
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    dl->ChannelsSplit(2);
+    dl->ChannelsSetCurrent(1);
     ImGuiStorage* st = ImGui::GetStateStorage();
-    const float target = st->GetFloat(detail::WindowKey("moderno.nav.target"), -1.0f);
-    if (target >= 0.0f) {
-        const ImGuiID keyY = detail::WindowKey("moderno.nav.y");
-        const float prev = st->GetFloat(keyY, -1.0f);
-        const float y = prev < 0.0f ? target : detail::Approach(prev, target, 0.25f);
-        st->SetFloat(keyY, y);
-        const ImVec2 cp = ImGui::GetCursorScreenPos(), win = ImGui::GetWindowPos();
-        const float w = ImGui::GetContentRegionAvail().x;
-        ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(cp.x, win.y + y), ImVec2(cp.x + w, win.y + y + M::navItemH * dpi),
-            detail::U32(Col().accentSoft), M::radiusLg * dpi);
-    }
-    st->SetFloat(detail::WindowKey("moderno.nav.target"), -1.0f);   // si ningún ítem queda seleccionado, no se dibuja
+    st->SetFloat(detail::WindowKey("moderno.nav.selected"), -1.0f);
+    st->SetFloat(detail::WindowKey("moderno.nav.pressed"), -1.0f);
+    st->SetFloat(detail::WindowKey("moderno.nav.x"), ImGui::GetCursorScreenPos().x);
+    st->SetFloat(detail::WindowKey("moderno.nav.w"), ImGui::GetContentRegionAvail().x);
 
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(M::space2 * dpi, M::navItemGap * dpi));
     if (title) {
@@ -1133,15 +1151,17 @@ namespace detail {
         const bool hovered = ImGui::IsItemHovered();
         ImDrawList* dl = ImGui::GetWindowDrawList();
         ImGuiStorage* st = ImGui::GetStateStorage();
-        if (selected) {
-            st->SetFloat(WindowKey("moderno.nav.target"), p.y - ImGui::GetWindowPos().y);
-            if (st->GetFloat(WindowKey("moderno.nav.y"), -1.0f) < 0.0f)   // primer frame: aún no hay fondo animado
-                dl->AddRectFilled(p, ImVec2(p.x + size.x, p.y + size.y), U32(col.accentSoft), M::radiusLg * dpi);
-        } else if (hovered) {
+        const float localY = p.y - ImGui::GetWindowPos().y;
+        if (selected) st->SetFloat(WindowKey("moderno.nav.selected"), localY);
+        if (pressed)  st->SetFloat(WindowKey("moderno.nav.pressed"), localY);
+        if (hovered) {   // en la capa de fondos, debajo de la selección: la pastilla lo cubre al llegar
+            dl->ChannelsSetCurrent(0);
             dl->AddRectFilled(p, ImVec2(p.x + size.x, p.y + size.y), U32(col.bgFrameHover), M::radiusLg * dpi);
+            dl->ChannelsSetCurrent(1);
         }
-        const ImVec4& text = (selected || hovered) ? col.textPrimary : col.textSecondary;
-        const ImVec4& iconCol = selected ? col.accent : text;
+        const bool active = selected || pressed;
+        const ImVec4& text = (active || hovered) ? col.textPrimary : col.textSecondary;
+        const ImVec4& iconCol = active ? col.accent : text;
         float x = p.x + M::space3 * dpi;
         PushTextStyle(TextStyle_Label);
         const float ty = p.y + (size.y - ImGui::GetFontSize()) * 0.5f;
@@ -1177,6 +1197,22 @@ inline void SidebarSeparator() {
 
 inline void EndSidebar() {
     ImGui::PopStyleVar();
+
+    // Selección animada en la capa de fondos: va al ítem pulsado en este frame o, si no, al seleccionado.
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    ImGuiStorage* st = ImGui::GetStateStorage();
+    const float pressedY = st->GetFloat(detail::WindowKey("moderno.nav.pressed"), -1.0f);
+    const float selectedY = st->GetFloat(detail::WindowKey("moderno.nav.selected"), -1.0f);
+    const float target = pressedY >= 0.0f ? pressedY : selectedY;
+    if (target >= 0.0f) {
+        const float dpi = Dpi();
+        const float y = detail::Animate(st, detail::WindowKey("moderno.nav.y"), target);
+        const float x = st->GetFloat(detail::WindowKey("moderno.nav.x"), 0.0f), w = st->GetFloat(detail::WindowKey("moderno.nav.w"), 0.0f);
+        const float wy = ImGui::GetWindowPos().y;
+        dl->ChannelsSetCurrent(0);
+        dl->AddRectFilled(ImVec2(x, wy + y), ImVec2(x + w, wy + y + M::navItemH * dpi), detail::U32(Col().accentSoft), M::radiusLg * dpi);
+    }
+    dl->ChannelsMerge();
     ImGui::EndChild();
     ImGui::SameLine(0, 0);
     ImGui::BeginGroup();   // contenido y barra de acciones a la derecha de la barra lateral; lo cierra EndSettingsWindow()
