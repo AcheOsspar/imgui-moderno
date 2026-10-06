@@ -20,6 +20,8 @@ if (ImGuiModerno::ConfirmModal("##borrar", "¿Borrar el perfil «Alto 90 Hz»?",
     DeleteProfile();
 ```
 
+Sin `cancelLabel`, el botón dice «Cancelar», «Cancel» o «Cancelar» según el idioma activo (`SetLanguage`).
+
 Para confirmar algo no destructivo (p. ej. aplicar y reiniciar), pasa `destructive = false` y el botón será `PrimaryButton`.
 
 Firmas completas en `docs/api.md`.

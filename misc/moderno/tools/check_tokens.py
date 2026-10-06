@@ -51,7 +51,7 @@ for tok in tokens["color"]["tokens"]:
             errors.append(f"color '{tok['name']}' ({mode}): tokens.json {want} ≠ header {have_hex} a={have_a}")
 
 # --- Medidas: constantes de namespace M ---
-consts = {k: float(v) for k, v in re.findall(r"\b(\w+)\s*=\s*([\d.]+)(?=[,;])", re.search(r"namespace M \{(.*?)\n\}", header, re.S).group(1))}
+consts = {k: float(v) for k, v in re.findall(r"\b(\w+)\s*=\s*([\d.]+)f?(?=[,;])", re.search(r"namespace M \{(.*?)\n\}", header, re.S).group(1))}
 pairs = {
     # tokens.json → constante de M
     "space-1": "space1", "space-2": "space2", "space-3": "space3", "space-4": "space4", "space-5": "space5", "space-6": "space6",
@@ -61,6 +61,7 @@ pairs = {
     "control-height": "controlH", "segment-height": "segH", "badge-height": "badgeH", "modal-width": "modalW",
     "nav-item-gap": "navItemGap", "toggle-inset": "toggleInset", "slider-track": "sliderTrack", "slider-knob": "sliderKnob",
     "slider-value-width": "sliderValueW", "seg-padding": "segPad", "tooltip-max-width": "tooltipMaxW",
+    "icon-stroke": "iconStroke",
 }
 all_tokens = {}
 for sec in ("spacing", "radius", "layout", "medidas"):
@@ -73,6 +74,12 @@ for name, const in pairs.items():
         errors.append(f"falta la constante M::{const} en el header")
     elif px(all_tokens[name]) != consts[const]:
         errors.append(f"'{name}' = {all_tokens[name]} en tokens.json, pero M::{const} = {consts[const]:g}")
+motion = {x["name"]: x["value"] for x in tokens.get("motion", {}).get("tokens", [])}
+if "motion-duration" not in motion:
+    errors.append("falta el token 'motion-duration' en tokens.json")
+elif px(motion["motion-duration"]) / 1000.0 != consts.get("motion"):
+    errors.append(f"'motion-duration' = {motion['motion-duration']}, pero M::motion = {consts.get('motion')} s")
+
 if "toggle-size" in all_tokens:
     w, h = re.findall(r"[\d.]+", all_tokens["toggle-size"])[:2]
     if (float(w), float(h)) != (consts.get("toggleW"), consts.get("toggleH")):

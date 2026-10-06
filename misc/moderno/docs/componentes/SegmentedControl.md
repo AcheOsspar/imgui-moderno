@@ -22,6 +22,8 @@ if (ImGuiModerno::ToggleSwitch("##contornos", &cfg.contornos)) cfg.perfil = -1; 
 
 El contenedor mide 32 px (como cualquier control): 2 px de relleno y segmentos de 28 px.
 
+Al elegir otra opción, la pastilla se desliza hasta ella en 120 ms (`M::motion`) y el texto se recorta con su forma, así se lee bien también durante el movimiento. En «Personalizado» la pastilla se desvanece.
+
 Firmas completas en `docs/api.md`.
 
 ## Medidas

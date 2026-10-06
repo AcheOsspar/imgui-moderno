@@ -6,15 +6,19 @@ Lista vertical de categorías con ícono y texto; la seleccionada se marca con f
 
 ```cpp
 static const char* const categorias[] = { "Video", "Gráficos", "Cámara", "Audio", "Controles", "Accesibilidad", "Acerca de" };
+static const ImGuiModerno::Icon iconos[] = { ImGuiModerno::Icon_Monitor, ImGuiModerno::Icon_Palette, ImGuiModerno::Icon_Camera,
+    ImGuiModerno::Icon_Volume, ImGuiModerno::Icon_Gamepad, ImGuiModerno::Icon_Accessibility, ImGuiModerno::Icon_Info };
 ImGuiModerno::BeginSidebar("Ajustes");
 for (int i = 0; i < IM_ARRAYSIZE(categorias); i++) {
     if (i == 6) ImGuiModerno::SidebarSeparator();                     // antes de «Acerca de»
-    if (ImGuiModerno::SidebarItem(categorias[i], cat == i /*, ICON_LC_MONITOR */)) cat = i;
+    if (ImGuiModerno::SidebarItem(categorias[i], cat == i, iconos[i])) cat = i;
 }
 ImGuiModerno::EndSidebar();
 ```
 
-El ícono es opcional: pasa un glifo de una fuente de íconos fusionada (ver Tema ImGui).
+Los íconos (`Icon_*`) los dibuja el propio sistema; no hace falta cargar ninguna fuente. También puedes pasar un glifo de una fuente de íconos fusionada, o nada.
+
+Al cambiar de categoría, el fondo del ítem seleccionado se desliza hasta el nuevo en 120 ms (`M::motion`).
 
 Firmas completas en `docs/api.md`.
 

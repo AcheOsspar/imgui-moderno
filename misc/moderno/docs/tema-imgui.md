@@ -99,7 +99,9 @@ ImGuiModerno::LoadFonts(
 
 - No multipliques los tamaños por el DPI: lo hace `style.FontScaleDpi`, que fija `ApplyTheme`.
 
-### Íconos (opcional)
+### Íconos
+
+Los íconos que necesita una ventana de ajustes ya vienen dibujados en `imgui_moderno.h` (`ImGuiModerno::Icon_*`, ver `docs/api.md`): no hace falta ninguna fuente. Solo si necesitas otros, fusiona la fuente Lucide.
 
 Para usar Lucide, fusiona su fuente con Inter Regular y Medium justo después de cargar cada una. Con fuentes dinámicas no hace falta indicar tamaños:
 

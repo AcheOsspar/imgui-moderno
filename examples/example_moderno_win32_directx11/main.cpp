@@ -131,7 +131,7 @@ int main(int, char**)
             bg->AddRectFilledMultiColor(p0, p1, IM_COL32(32, 58, 92, 255), IM_COL32(32, 58, 92, 255), IM_COL32(18, 24, 38, 255), IM_COL32(18, 24, 38, 255));
             if (!show_settings)
             {
-                const char* hint = "Pulsa F1 para abrir los ajustes";
+                const char* hint = ImGuiModerno::Tr("Pulsa F1 para abrir los ajustes", "Press F1 to open settings", "Pressione F1 para abrir as configurações");
                 ImGuiModerno::PushTextStyle(ImGuiModerno::TextStyle_Label);
                 const ImVec2 ts = ImGui::CalcTextSize(hint);
                 bg->AddText(ImVec2(vp->GetCenter().x - ts.x * 0.5f, vp->GetCenter().y - ts.y * 0.5f), IM_COL32(255, 255, 255, 200), hint);

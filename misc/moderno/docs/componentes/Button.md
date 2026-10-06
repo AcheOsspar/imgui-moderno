@@ -30,6 +30,8 @@ ImGui::SameLine(0, gap);
 ImGuiModerno::PrimaryButton("Aplicar");
 ```
 
+Ícono opcional a la izquierda, del set del sistema: `GhostButton("Ayuda", ImGuiModerno::Icon_Help)`, `DangerButton("Borrar perfil", ImGuiModerno::Icon_Trash)`. Si alineas a la derecha, pasa el mismo ícono a `ButtonWidth(label, icon)`.
+
 Dentro de una fila (`SettingRow`), el botón se pega solo al borde derecho de la columna de control.
 
 Firmas completas en `docs/api.md`.

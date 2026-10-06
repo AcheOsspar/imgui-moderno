@@ -2,7 +2,7 @@
 
 **Menús de ajustes claros y modernos para Dear ImGui**, pensados para emuladores, juegos y herramientas.
 
-*Clean, modern settings menus for Dear ImGui: a monochrome theme (dark and light) plus ready-made widgets. Header-only, drop-in.*
+*Clean, modern settings menus for Dear ImGui: a monochrome theme (dark and light), ready-made widgets, smooth motion, built-in icons and Spanish / English / Portuguese support. Header-only, drop-in.*
 
 ![Ventana de ajustes de ImGui Moderno en modo oscuro y claro](misc/moderno/docs/images/hero.png)
 
@@ -16,15 +16,24 @@ Dear ImGui es rapidísimo para crear interfaces, pero lo que sale por defecto es
 - **Widgets pensados para ajustes**: interruptor, selector segmentado, desplegable, slider fino con lectura del valor, botones en cuatro variantes, insignias, avisos, tooltips y modal de confirmación.
 - **Filas de ajuste**: etiqueta y descripción a la izquierda y control alineado a la derecha, con una sola llamada.
 - **Ventana de ajustes completa**: barra lateral de categorías, contenido con scroll y barra de acciones con «Aplicar» solo cuando hay cambios.
+- **Movimiento sutil**: la selección de la barra lateral y la pastilla del selector segmentado se deslizan al cambiar; el interruptor se anima. Todo en 120 ms, sin rebotes ni adornos.
+- **Íconos incluidos**: íconos de línea para categorías y botones, dibujados por el propio sistema. No hace falta cargar ninguna fuente de íconos.
+- **Tres idiomas**: español, inglés y portugués (Brasil), con cambio al momento. Los textos del sistema se traducen solos y tus textos usan `Tr("es", "en", "pt")`.
 - **Escala y accesibilidad**: todo escala con el DPI (100 % a 200 %) y se usa con ratón, teclado y mando.
 - **Header-only**: un archivo, `imgui_moderno.h`. Requiere Dear ImGui 1.92 o posterior.
 - **Guía de diseño y de escritura** para que la interfaz no solo se vea bien, sino que también se lea bien.
+
+![Animaciones: la pastilla del selector y la selección de la barra lateral se deslizan](misc/moderno/docs/images/motion.gif)
 
 | Modo oscuro | Modo claro |
 |---|---|
 | ![Modo oscuro](misc/moderno/docs/images/dark.png) | ![Modo claro](misc/moderno/docs/images/light.png) |
 | **Avisos con qué pasó, qué hacer y código** | **Confirmación antes de acciones destructivas** |
 | ![Aviso de error en la página de controles](misc/moderno/docs/images/controls.png) | ![Modal de confirmación](misc/moderno/docs/images/modal.png) |
+
+**Español, English, Português**: el idioma se cambia al momento desde *Accesibilidad*.
+
+![La misma ventana en español, inglés y portugués](misc/moderno/docs/images/languages.png)
 
 ## Así se usa
 
@@ -48,13 +57,17 @@ if (ImGuiModerno::BeginSettingRows("##graficos")) {
     ImGuiModerno::Combo("##filtro", &cfg.filter, filtros, IM_ARRAYSIZE(filtros));
     ImGuiModerno::EndSettingRows();
 }
+
+// Íconos y varios idiomas:
+ImGuiModerno::SidebarItem(ImGuiModerno::Tr("Gráficos", "Graphics", "Gráficos"), cat == 1, ImGuiModerno::Icon_Palette);
+ImGuiModerno::SetLanguage(ImGuiModerno::Language_English);
 ```
 
 Tus variables y tu lógica no cambian: solo cambia cómo se presentan.
 
 ## Pruébalo
 
-El ejemplo [`examples/example_moderno_win32_directx11`](examples/example_moderno_win32_directx11/main.cpp) abre la ventana de ajustes de un emulador sobre una pantalla de juego simulada, con todos los componentes funcionando. Pulsa **F1** para mostrarla u ocultarla.
+El ejemplo [`examples/example_moderno_win32_directx11`](examples/example_moderno_win32_directx11/main.cpp) abre la ventana de ajustes de un emulador sobre una pantalla de juego simulada, con todos los componentes funcionando. Pulsa **F1** para mostrarla u ocultarla. En *Accesibilidad* puedes cambiar idioma, tema y tamaño de interfaz al momento.
 
 Con Visual Studio, desde una *Developer Command Prompt*:
 
@@ -72,7 +85,7 @@ Para integrarlo en tu proyecto, copia `misc/moderno/imgui_moderno.h` junto a tus
 |---|---|
 | [Cómo empezar](misc/moderno/README.md) | Integración, fuentes y ejemplos |
 | [Referencia de la API](misc/moderno/docs/api.md) | Cada función, con ejemplos y errores comunes |
-| [Guía de diseño](misc/moderno/docs/guia.md) | Principios, layout, organización, tipografía, color y escritura |
+| [Guía de diseño](misc/moderno/docs/guia.md) | Principios, layout, organización, tipografía, color, íconos, movimiento y escritura |
 | [Medidas](misc/moderno/docs/medidas.md) | Padding, espaciado y alturas de cada componente |
 | [Componentes](misc/moderno/docs/componentes/) | Una ficha por componente |
 | [Tokens](misc/moderno/tokens.json) | Todos los valores del sistema en JSON |
@@ -83,7 +96,14 @@ Para integrarlo en tu proyecto, copia `misc/moderno/imgui_moderno.h` junto a tus
 
 ## Estado
 
-En desarrollo. El tema y los widgets están completos y se probaron con el ejemplo de Windows + DirectX 11. Próximos pasos: ejemplos para SDL y GLFW, y probar más a fondo la navegación con mando.
+En desarrollo. El tema, los widgets, las animaciones, los íconos y los tres idiomas están completos y se probaron con el ejemplo de Windows + DirectX 11.
+
+Próximos pasos:
+
+- Marca de «modificado» en cada fila, con restablecer por ajuste.
+- Foco de mando propio, que se desliza entre controles.
+- Ejemplos para SDL y GLFW.
+- Más idiomas (chino, japonés, ruso), que necesitan fuentes con esos alfabetos.
 
 ## Créditos y licencia
 

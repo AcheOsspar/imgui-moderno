@@ -60,9 +60,11 @@ ImGuiModerno::ApplyTheme(/*dark=*/true, /*dpi=*/main_scale);                    
 | Explicación extra no imprescindible | `RowOptions::helpTitle/helpBody` | Información obligatoria en un tooltip |
 | Resultado, error o aviso | `Notice` | `TextColored` rojo |
 | Lectura de un valor | `Value` | `ImGui::Text` |
+| Selector de idioma | `Segmented` con `LanguageName()` + `SetLanguage()` | `Combo` con códigos («es», «en») |
 | Grupo de filas | `SectionHeader` | `CollapsingHeader`, `SeparatorText` |
 | Opciones avanzadas | `CollapsibleSection("Avanzado")`, al final | |
-| Categorías | `BeginSettingsWindow` + `BeginSidebar`/`SidebarItem` | `BeginTabBar`, ventanas sueltas |
+| Categorías | `BeginSettingsWindow` + `BeginSidebar`/`SidebarItem` con su `Icon_*` | `BeginTabBar`, ventanas sueltas |
+| Ícono en botón o navegación | `Icon_*` del sistema (`Icon_Help`, `Icon_Trash`…) | Emojis, PNG, íconos rellenos o a color |
 
 ## 4. Organización de la información
 
@@ -75,7 +77,23 @@ ImGuiModerno::ApplyTheme(/*dark=*/true, /*dpi=*/main_scale);                    
 
 ## 5. Textos
 
-Por defecto en **español neutro con tuteo**. Si el proyecto ya tiene otro idioma, conserva su idioma y aplica las mismas reglas de estilo.
+El sistema admite **español, inglés y portugués (Brasil)**. Todo texto visible pasa por `Tr("es", "en", "pt")` (o por el sistema de traducción que ya tenga el proyecto) y se escribe en los tres idiomas a la vez; nunca dejes un idioma vacío ni copies el español en los otros. Si el proyecto solo usa un idioma, respeta ese y aplica las mismas reglas de estilo.
+
+Reglas por idioma:
+
+| | Español | English | Português (Brasil) |
+|---|---|---|---|
+| Trato | Tuteo, español neutro: «Elige», «Puedes» | Segunda persona directa: «Choose», «You can» | «Você»: «Escolha», «Você pode» |
+| Mayúsculas | Solo la inicial: «Campo de visión» | *Sentence case*, no *Title Case*: «Field of view» | Solo la inicial: «Campo de visão» |
+| Botones | Infinitivo: «Aplicar», «Elegir ROM» | Imperativo: «Apply», «Choose ROM» | Infinitivo: «Aplicar», «Escolher ROM» |
+| Vocabulario de juego | mando, pantalla, ajustes, partida guardada | controller, screen, settings, saved game | controle, tela, configurações, jogo salvo |
+| Nunca | «OK», «Aceptar» | «OK», «Submit» | «OK», «Ok» |
+
+Longitud: el portugués suele ser hasta un 30 % más largo que el inglés y el español un 20 %. Comprueba que las etiquetas de `Segmented` (2 a 4 opciones en 240 px) caben en los tres idiomas; si no, acórtalas o usa `Combo`.
+
+IDs: si una etiqueta traducida es también el ID de algo con estado (secciones colapsables, ítems de navegación en bucle), fíjalo con `###id` o `PushID(i)` para que no cambie con el idioma (ver `docs/api.md`, Idiomas).
+
+Ejemplos en español (las reglas son las mismas en los tres idiomas):
 
 | Elemento | Regla | Bien | Mal |
 |---|---|---|---|
@@ -134,6 +152,7 @@ if (ImGuiModerno::ConfirmModal("##reset", "¿Restablecer todos los ajustes?",
 - Poner dos `PrimaryButton` en la misma vista, o un `DangerButton` sin confirmación.
 - Usar `ImGui::TextWrapped` con un `PushTextWrapPos` propio: `TextWrapped` lo ignora; usa `TextUnformatted` con el wrap activo.
 - Escribir medidas sin `* Dpi()` o colores sin `Col()`.
+- Añadir animaciones propias con otra duración: todo movimiento usa `M::motion` (120 ms) y solo para cambios de posición o estado.
 
 ## 8. Si modificas el sistema
 
@@ -159,7 +178,8 @@ Un componente nuevo: usa una de las alturas fijas, solo valores de la escala, co
 - [ ] Los sí/no son `ToggleSwitch`; 2–4 opciones `Segmented`; 5+ `Combo`; continuos `SliderFloat/Int` con unidad.
 - [ ] Hay como máximo un `PrimaryButton` por vista y cada `DangerButton` abre un `ConfirmModal`.
 - [ ] Toda opción deshabilitada explica el motivo.
-- [ ] Textos: etiquetas sin dos puntos, botones en infinitivo, errores con qué pasó + qué hacer + código.
+- [ ] Textos: etiquetas sin dos puntos, botones en infinitivo (imperativo en inglés), errores con qué pasó + qué hacer + código.
+- [ ] Cada texto visible está en español, inglés y portugués, y las etiquetas cortas caben en los tres.
 - [ ] «Avanzado» es la última sección y está colapsada.
 - [ ] Se puede recorrer todo con teclado y mando.
 - [ ] Compila sin advertencias y no aparece ningún aviso de ImGui en pantalla.

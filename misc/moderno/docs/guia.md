@@ -105,7 +105,7 @@ Todo el texto cumple al menos 4.5:1 de contraste sobre sus fondos en ambos modos
 
 ## Íconos
 
-- Set: **Lucide** (licencia ISC), estilo de línea, trazo de 1.75 px. En ImGui se integra como fuente con IconFontCppHeaders (`IconsLucide.h`, macros `ICON_LC_*`), fusionada en el atlas. Los íconos son opcionales: `SidebarItem(label, selected, icon)` acepta un glifo, y los widgets que necesitan uno (aviso, ayuda, check, chevron) lo dibujan sin fuente de íconos.
+- Set: estilo **Lucide** (licencia ISC), de línea, trazo de 1.75 px. El sistema trae dibujados con `ImDrawList` los que necesita una ventana de ajustes (`ImGuiModerno::Icon_*`: categorías, ayuda, abrir, restablecer, borrar), así que no hace falta cargar ninguna fuente. Para otros íconos puedes fusionar la fuente Lucide (IconFontCppHeaders, `ICON_LC_*`) y pasar el glifo a `SidebarItem`.
 - Tamaño: 16 px (`icon-size`) en navegación, botones y avisos; 12 px en insignias.
 - Color: hereda el del texto; en la categoría seleccionada, `accent`. Los íconos de estado usan `success`, `warning` o `danger`.
 - Separación con el texto: `space-2` (8 px).
@@ -138,15 +138,24 @@ Todo el texto cumple al menos 4.5:1 de contraste sobre sus fondos en ambos modos
 - Sin sombras: ImGui no las dibuja de forma nativa, y el sistema no las necesita.
 - Alturas fijas: 20 px insignias, 28 px segmentos, 32 px controles y botones, 36 px ítems de navegación, 44 px mínimo por fila, 56 px barra de acciones.
 
+## Movimiento
+
+- Una sola duración para todo: **120 ms** (`M::motion`), con salida suave. Rápido para no hacer esperar a nadie y suficiente para que el ojo siga el cambio.
+- Solo se anima lo que cambia de sitio o de estado: la perilla del interruptor, la pastilla del selector segmentado y el fondo de la categoría seleccionada.
+- Nada se anima en bucle ni para llamar la atención. Sin rebotes ni efectos elásticos.
+
 ## Escritura
 
-- Español neutro, tuteo («Elige», «Puedes»), sin regionalismos.
+La interfaz se escribe en **español, inglés y portugués (Brasil)**, con las mismas reglas en los tres (ver la tabla por idioma en `AGENTS.md`). Cada idioma se escribe para quien lo lee, no se traduce palabra por palabra: «Restablecer» es «Reset» y «Redefinir», no «Re-establish».
+
+- Español neutro, tuteo («Elige», «Puedes»), sin regionalismos. Inglés en segunda persona y *sentence case*. Portugués de Brasil con «você».
 - Etiquetas: sustantivo corto, mayúscula inicial y sin dos puntos («Campo de visión»).
 - Botones: verbo en infinitivo («Aplicar», «Elegir ROM»). Nunca «OK».
 - Descripciones: una línea, dicen qué cambia en pantalla.
 - Errores: qué pasó (título) + qué hacer (cuerpo) + código en su propia línea en mono («Código CTL-0042»). Nunca un volcado técnico solo.
 - Valores siempre con unidad: «90 Hz», «30 %», «1.10x».
-- Si el proyecto usa otro idioma, se conservan su idioma y estas mismas reglas de estilo.
+- El idioma se cambia al momento desde Accesibilidad → Idioma, con el nombre de cada idioma escrito en ese idioma («Español», «English», «Português»).
+- Las etiquetas cortas (segmentos, botones) deben caber en los tres idiomas: el portugués es el más largo.
 - Sin signos de exclamación en mensajes del sistema.
 
 ## Accesibilidad y mando

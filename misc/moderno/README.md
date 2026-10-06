@@ -2,7 +2,7 @@
 
 Sistema de diseño para interfaces hechas con Dear ImGui: un tema (paleta Grafito, modo oscuro y claro) y widgets listos para armar menús de ajustes claros y amigables, pensados para emuladores, juegos y herramientas.
 
-*A design system for Dear ImGui: a monochrome theme (dark and light) plus ready-made widgets for friendly settings menus. Header-only; drop `imgui_moderno.h` into your project.*
+*A design system for Dear ImGui: a monochrome theme (dark and light), ready-made widgets, smooth motion, built-in icons and Spanish / English / Portuguese support for friendly settings menus. Header-only; drop `imgui_moderno.h` into your project.*
 
 ## Qué incluye
 
@@ -17,6 +17,12 @@ Sistema de diseño para interfaces hechas con Dear ImGui: un tema (paleta Grafit
 | `tools/check_tokens.py` | Verifica que `tokens.json` y el header coinciden |
 
 Componentes: `ToggleSwitch`, `Segmented`, `Combo`, `SliderFloat` / `SliderInt`, `PrimaryButton` / `SecondaryButton` / `GhostButton` / `DangerButton`, `Badge`, `Value`, `Notice`, `HelpMarker` / `ItemTooltip`, `SectionHeader`, `CollapsibleSection`, `SettingRow`, `ConfirmModal`, y la ventana completa con `BeginSettingsWindow`, `BeginSidebar` / `SidebarItem` y `BeginSettingsContent` / `BeginSettingsFooter`.
+
+Además:
+
+- **Íconos** (`Icon_Monitor`, `Icon_Palette`, `Icon_Help`, `Icon_Trash`…) dibujados con `ImDrawList`, para la barra lateral y los botones. Sin fuentes de íconos.
+- **Movimiento**: interruptor, pastilla del selector segmentado y selección de la barra lateral animados en 120 ms.
+- **Idiomas**: español, inglés y portugués (Brasil) con `SetLanguage()` y `Tr("es", "en", "pt")`.
 
 ## Verlo en acción
 
@@ -62,6 +68,16 @@ Debug\example_moderno_win32_directx11.exe
    ```
 
    `SettingRow()` deja el cursor en la columna derecha (240 px); el control que pongas a continuación se alinea al borde derecho y se centra con el texto.
+
+   En varios idiomas, pasa cada texto por `Tr()` y elige el idioma con `SetLanguage()`:
+
+   ```cpp
+   ImGuiModerno::SetLanguage(ImGuiModerno::Language_Portuguese);
+   ImGuiModerno::SettingRow(ImGuiModerno::Tr("Contornos", "Outlines", "Contornos"),
+                            ImGuiModerno::Tr("Bordes oscuros en personajes y objetos.",
+                                             "Dark edges on characters and objects.",
+                                             "Bordas escuras em personagens e objetos."));
+   ```
 
 4. Para una ventana de ajustes completa (barra lateral, contenido con scroll y barra de acciones), copia la estructura de `ShowDemoWindow()` en `imgui_moderno_demo.cpp`.
 

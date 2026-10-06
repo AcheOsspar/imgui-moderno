@@ -23,6 +23,8 @@
 #include <cfloat>
 #include <cstdint>
 #include <climits>
+#include <cmath>
+#include <initializer_list>
 
 namespace ImGuiModerno {
 
@@ -68,6 +70,31 @@ inline Palette& Col()    { static Palette p = Dark(); return p; }
 inline float&   Dpi()    { static float d = 1.0f; return d; }
 inline bool&    IsDark() { static bool d = true; return d; }
 
+// ---------------------------------------------------------------------------
+// Idioma (docs/api.md, sección Idiomas). Español, inglés y portugués (Brasil).
+// Los textos propios del sistema (p. ej. «Cancelar» del modal) siguen el idioma activo;
+// tu aplicación puede usar Tr() para los suyos.
+// ---------------------------------------------------------------------------
+enum Language { Language_Spanish, Language_English, Language_Portuguese, Language_COUNT };
+
+inline Language& CurrentLanguage() { static Language l = Language_Spanish; return l; }
+inline void SetLanguage(Language l) { CurrentLanguage() = (l >= 0 && l < Language_COUNT) ? l : Language_Spanish; }
+
+// Devuelve el texto del idioma activo:  Tr("Aplicar", "Apply", "Aplicar")
+inline const char* Tr(const char* es, const char* en, const char* pt) {
+    switch (CurrentLanguage()) {
+    case Language_English:    return en;
+    case Language_Portuguese: return pt;
+    default:                  return es;
+    }
+}
+
+// Nombre de cada idioma escrito en ese idioma, para un selector («Español», «English», «Português»).
+inline const char* LanguageName(Language l) {
+    static const char* const names[Language_COUNT] = { "Español", "English", "Português" };
+    return (l >= 0 && l < Language_COUNT) ? names[l] : names[0];
+}
+
 // Tono de estado para insignias y avisos.
 enum Tone { Tone_Neutral, Tone_Success, Tone_Warning, Tone_Danger };
 
@@ -90,7 +117,8 @@ namespace M {
     constexpr float sidebarW = 200, controlW = 240, windowW = 880, windowH = 600;
     constexpr float toggleW = 36, toggleH = 20, toggleInset = 3;
     constexpr float sliderTrack = 4, sliderKnob = 14, sliderValueW = 44;
-    constexpr float modalW = 400, tooltipMaxW = 280, iconSize = 16;
+    constexpr float modalW = 400, tooltipMaxW = 280, iconSize = 16, iconStroke = 1.75f;
+    constexpr float motion = 0.12f;   // segundos: duración de toda animación (switch, selección, pastilla)
     constexpr float radiusSm = 4, radiusMd = 6, radiusLg = 8, radiusXl = 12, radiusFull = 999;
     // Tipografía (px)
     constexpr float fontWindowTitle = 20, fontPageTitle = 17, fontSection = 12, fontLabel = 15, fontBody = 15, fontCaption = 13, fontValue = 13, fontBadge = 12;
@@ -275,6 +303,16 @@ namespace detail {
         GImGui->NextItemData.ClearFlags();   // ya se usó el ancho
     }
 
+    // Acerca 'cur' a 'target' con la duración de movimiento del sistema (~95 % en M::motion).
+    inline float Approach(float cur, float target, float snap) {
+        const float k = 1.0f - std::exp(-ImGui::GetIO().DeltaTime * 3.0f / M::motion);
+        const float v = cur + (target - cur) * k;
+        return (std::fabs(target - v) < snap) ? target : v;
+    }
+
+    // Clave de almacenamiento fija por ventana (no depende de PushID del usuario).
+    inline ImGuiID WindowKey(const char* name) { return ImHashStr(name, 0, ImGui::GetCurrentWindow()->ID); }
+
     // Texto con la fuente actual, sin crear un ítem.
     inline void DrawText(ImVec2 pos, const ImVec4& col, const char* text, const char* end = nullptr, float wrap = 0.0f) {
         ImGui::GetWindowDrawList()->AddText(ImGui::GetFont(), ImGui::GetFontSize(), pos, U32(col), text, end, wrap);
@@ -302,7 +340,7 @@ inline bool ToggleSwitch(const char* id, bool* v) {
     ImGuiStorage* st = ImGui::GetStateStorage();
     const ImGuiID key = ImGui::GetItemID();
     float t = st->GetFloat(key, *v ? 1.0f : 0.0f);
-    t = ImClamp(t + (*v ? 1.0f : -1.0f) * ImGui::GetIO().DeltaTime / 0.12f, 0.0f, 1.0f);
+    t = ImClamp(t + (*v ? 1.0f : -1.0f) * ImGui::GetIO().DeltaTime / M::motion, 0.0f, 1.0f);
     st->SetFloat(key, t);
 
     const float y = p.y + (boxH - h) * 0.5f;
@@ -333,6 +371,22 @@ inline bool Segmented(const char* id, int* v, const char* const items[], int cou
     const float segW = (width - 2 * pad) / (float)count;
     const ImVec2 segSize(segW, H - 2 * pad);
     ImGui::PushID(id);
+
+    // Pastilla del segmento activo: se desliza entre opciones y se desvanece en «Personalizado» (*v = -1).
+    ImGuiStorage* st = ImGui::GetStateStorage();
+    const ImGuiID keyX = ImGui::GetID("##pastillaX"), keyA = ImGui::GetID("##pastillaA");
+    const bool hasSel = (*v >= 0 && *v < count);
+    const float targetX = hasSel ? segW * (float)*v : st->GetFloat(keyX, 0.0f);
+    const float pillX = detail::Approach(st->GetFloat(keyX, targetX), targetX, 0.25f);
+    const float pillA = detail::Approach(st->GetFloat(keyA, hasSel ? 1.0f : 0.0f), hasSel ? 1.0f : 0.0f, 0.01f);
+    st->SetFloat(keyX, pillX);
+    st->SetFloat(keyA, pillA);
+    if (pillA > 0.0f) {
+        ImVec4 c = col.accent; c.w *= pillA;
+        const ImVec2 a(p.x + pad + pillX, p.y + pad);
+        dl->AddRectFilled(a, ImVec2(a.x + segSize.x, a.y + segSize.y), detail::U32(c), M::radiusSm * dpi);
+    }
+
     PushTextStyle(TextStyle_Label);
     for (int i = 0; i < count; i++) {
         const ImVec2 a(p.x + pad + segW * i, p.y + pad);
@@ -341,15 +395,35 @@ inline bool Segmented(const char* id, int* v, const char* const items[], int cou
         if (ImGui::InvisibleButton("##seg", segSize) && *v != i) { *v = i; changed = true; }
         ImGui::PopID();
         const bool hovered = ImGui::IsItemHovered();
-        const bool sel = (*v == i);
         const ImVec2 b(a.x + segSize.x, a.y + segSize.y);
-        if (sel || hovered)
-            dl->AddRectFilled(a, b, detail::U32(sel ? col.accent : col.bgFrameHover), M::radiusSm * dpi);
-        ImGui::PushStyleColor(ImGuiCol_Text, sel ? col.onAccent : hovered ? col.textPrimary : col.textSecondary);
+        // Cuánto cubre la pastilla a este segmento (0 a 1): decide si se dibuja el fondo de hover.
+        const float cover = pillA * ImClamp(1.0f - std::fabs(pillX - segW * i) / segW, 0.0f, 1.0f);
+        if (hovered && cover < 0.05f)
+            dl->AddRectFilled(a, b, detail::U32(col.bgFrameHover), M::radiusSm * dpi);
+        // Texto en dos pasadas: color normal fuera de la pastilla y on-accent recortado a la pastilla,
+        // así se lee bien también mientras se desliza.
         const ImVec2 ts = ImGui::CalcTextSize(items[i]);
+        const ImVec2 t0(a.x + M::space2 * dpi, a.y), t1(b.x - M::space2 * dpi, b.y);
         const ImRect bb(a, b);
-        ImGui::RenderTextClipped(ImVec2(a.x + M::space2 * dpi, a.y), ImVec2(b.x - M::space2 * dpi, b.y), items[i], nullptr, &ts, ImVec2(0.5f, 0.5f), &bb);
-        ImGui::PopStyleColor();
+        const ImRect pill(p.x + pad + pillX, a.y, p.x + pad + pillX + segW, b.y);
+        ImRect inPill = bb; inPill.ClipWith(pill);
+        const bool pillHere = pillA > 0.0f && inPill.GetWidth() > 0.0f;
+        ImRect outPill = bb;   // la parte del segmento que la pastilla no cubre (a un lado u otro)
+        if (pillHere && pillA >= 0.99f) {
+            if (pill.Min.x <= bb.Min.x) outPill.Min.x = ImMin(bb.Max.x, pill.Max.x);
+            else                        outPill.Max.x = ImMax(bb.Min.x, pill.Min.x);
+        }
+        if (outPill.GetWidth() > 0.0f) {
+            ImGui::PushStyleColor(ImGuiCol_Text, hovered ? col.textPrimary : col.textSecondary);
+            ImGui::RenderTextClipped(t0, t1, items[i], nullptr, &ts, ImVec2(0.5f, 0.5f), &outPill);
+            ImGui::PopStyleColor();
+        }
+        if (pillHere) {
+            ImVec4 on = ImLerp(col.textSecondary, col.onAccent, pillA);
+            ImGui::PushStyleColor(ImGuiCol_Text, on);
+            ImGui::RenderTextClipped(t0, t1, items[i], nullptr, &ts, ImVec2(0.5f, 0.5f), &inPill);
+            ImGui::PopStyleColor();
+        }
     }
     PopTextStyle();
     ImGui::PopID();
@@ -359,12 +433,111 @@ inline bool Segmented(const char* id, int* v, const char* const items[], int cou
 }
 
 // ---------------------------------------------------------------------------
+// Íconos de línea dibujados con ImDrawList (estilo Lucide, rejilla de 24, trazo de 1.75 px a 16 px).
+// No necesitan ninguna fuente de íconos. Se usan en SidebarItem y en los botones.
+// ---------------------------------------------------------------------------
+enum Icon {
+    Icon_None,
+    Icon_Monitor,        // Video
+    Icon_Palette,        // Gráficos
+    Icon_Camera,         // Cámara
+    Icon_Volume,         // Audio
+    Icon_Gamepad,        // Controles
+    Icon_Accessibility,  // Accesibilidad
+    Icon_Info,           // Acerca de
+    Icon_Help,           // Ayuda
+    Icon_Folder,         // Abrir archivo
+    Icon_Refresh,        // Restablecer, requiere reinicio
+    Icon_Trash,          // Borrar
+    Icon_COUNT
+};
+
+// Dibuja 'icon' en un cuadro de 'size' px cuya esquina superior izquierda es 'pos'.
+inline void DrawIcon(ImDrawList* dl, Icon icon, ImVec2 pos, float size, ImU32 col) {
+    const float s = size / 24.0f;
+    const float th = M::iconStroke * size / M::iconSize;
+    auto P = [&](float x, float y) { return ImVec2(pos.x + x * s, pos.y + y * s); };
+    auto line = [&](float x0, float y0, float x1, float y1) { dl->AddLine(P(x0, y0), P(x1, y1), col, th); };
+    auto dot = [&](float x, float y, float r) { dl->AddCircleFilled(P(x, y), r * s, col); };
+    auto poly = [&](std::initializer_list<ImVec2> pts, bool closed) {
+        ImVec2 buf[16]; int n = 0;
+        for (const ImVec2& q : pts) buf[n++] = P(q.x, q.y);
+        dl->AddPolyline(buf, n, col, closed ? ImDrawFlags_Closed : ImDrawFlags_None, th);
+    };
+    auto arc = [&](float cx, float cy, float r, float a0, float a1) {
+        dl->PathArcTo(P(cx, cy), r * s, a0, a1, 0);
+        dl->PathStroke(col, ImDrawFlags_None, th);
+    };
+    const float PI = 3.14159265f;
+    switch (icon) {
+    case Icon_Monitor:
+        dl->AddRect(P(2, 3), P(22, 17), col, 2 * s, ImDrawFlags_None, th);
+        line(8, 21, 16, 21); line(12, 17, 12, 21);
+        break;
+    case Icon_Palette:
+        dl->AddCircle(P(12, 12), 10 * s, col, 0, th);
+        dot(13.5f, 6.5f, 1.6f); dot(17.5f, 10.5f, 1.6f); dot(8.5f, 7.5f, 1.6f); dot(6.5f, 12.5f, 1.6f);
+        break;
+    case Icon_Camera:
+        dl->AddRect(P(2, 7), P(22, 20), col, 2 * s, ImDrawFlags_None, th);
+        poly({ ImVec2(7.5f, 7), ImVec2(9, 4), ImVec2(15, 4), ImVec2(16.5f, 7) }, false);
+        dl->AddCircle(P(12, 13.5f), 3.5f * s, col, 0, th);
+        break;
+    case Icon_Volume:
+        poly({ ImVec2(11, 5), ImVec2(6, 9), ImVec2(2, 9), ImVec2(2, 15), ImVec2(6, 15), ImVec2(11, 19) }, true);
+        arc(12, 12, 5, -PI * 0.25f, PI * 0.25f);
+        arc(12, 12, 10, -PI * 0.25f, PI * 0.25f);
+        break;
+    case Icon_Gamepad:
+        dl->AddRect(P(2, 6), P(22, 18), col, 6 * s, ImDrawFlags_None, th);
+        line(6, 12, 10, 12); line(8, 10, 8, 14);
+        dot(15, 13, 1.3f); dot(18, 10.5f, 1.3f);
+        break;
+    case Icon_Accessibility:
+        dl->AddCircle(P(12, 12), 10 * s, col, 0, th);
+        dot(12, 6.8f, 1.6f);
+        line(7.5f, 10, 16.5f, 10); line(12, 10, 12, 14);
+        poly({ ImVec2(9, 18), ImVec2(12, 14), ImVec2(15, 18) }, false);
+        break;
+    case Icon_Info:
+        dl->AddCircle(P(12, 12), 10 * s, col, 0, th);
+        line(12, 16, 12, 11.5f); dot(12, 8, 1.3f);
+        break;
+    case Icon_Help:
+        dl->AddCircle(P(12, 12), 10 * s, col, 0, th);
+        dl->PathArcTo(P(12, 9.5f), 2.75f * s, PI, PI * 2.3f, 0);
+        dl->PathLineTo(P(12, 13.5f));
+        dl->PathStroke(col, ImDrawFlags_None, th);
+        dot(12, 17, 1.3f);
+        break;
+    case Icon_Folder:
+        poly({ ImVec2(2, 5), ImVec2(9, 5), ImVec2(11, 7.5f), ImVec2(22, 7.5f), ImVec2(22, 20), ImVec2(2, 20) }, true);
+        break;
+    case Icon_Refresh:
+        arc(12, 12, 9, PI * 1.11f, PI * 1.83f);
+        poly({ ImVec2(21, 3), ImVec2(21, 8), ImVec2(16, 8) }, false);
+        arc(12, 12, 9, PI * 0.11f, PI * 0.83f);
+        poly({ ImVec2(3, 21), ImVec2(3, 16), ImVec2(8, 16) }, false);
+        break;
+    case Icon_Trash:
+        line(3, 6, 21, 6);
+        poly({ ImVec2(5, 6), ImVec2(6, 21), ImVec2(18, 21), ImVec2(19, 6) }, false);
+        poly({ ImVec2(9, 6), ImVec2(9, 3), ImVec2(15, 3), ImVec2(15, 6) }, false);
+        break;
+    default: break;
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Botones (docs/componentes/Button.md). Alto fijo de 32 px, relleno horizontal de 16 px.
 // Un solo PrimaryButton por vista; DangerButton siempre con ConfirmModal.
 // ---------------------------------------------------------------------------
 enum ButtonKind { ButtonKind_Primary, ButtonKind_Secondary, ButtonKind_Ghost, ButtonKind_Danger };
 
-inline bool ButtonEx(const char* label, ButtonKind kind, float width = 0.0f) {
+inline float ButtonWidth(const char* label, Icon icon = Icon_None);
+
+// 'icon' (opcional) va a la izquierda del texto, a 8 px.
+inline bool ButtonEx(const char* label, ButtonKind kind, float width = 0.0f, Icon icon = Icon_None) {
     const Palette& col = Col();
     const float dpi = Dpi();
     ImVec4 bg, hover, active, text;
@@ -380,23 +553,40 @@ inline bool ButtonEx(const char* label, ButtonKind kind, float width = 0.0f) {
     ImGui::PushStyleColor(ImGuiCol_Text, text);
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(M::space4 * dpi, 0));
     PushTextStyle(TextStyle_Label);
+    const float H = M::controlH * dpi;
     if (width <= 0.0f && detail::HasNextItemWidth())
-        detail::AlignInControlBox(ImVec2(ImGui::CalcTextSize(label, nullptr, true).x + 2 * M::space4 * dpi, M::controlH * dpi));
-    const bool pressed = ImGui::Button(label, ImVec2(width, M::controlH * dpi));
+        detail::AlignInControlBox(ImVec2(ButtonWidth(label, icon), H));
+    bool pressed;
+    if (icon == Icon_None) {
+        pressed = ImGui::Button(label, ImVec2(width, H));
+    } else {
+        // Botón sin texto propio; ícono y etiqueta se dibujan centrados encima.
+        const float w = width > 0.0f ? width : ButtonWidth(label, icon);
+        ImGui::PushID(label);
+        pressed = ImGui::Button("##boton", ImVec2(w, H));
+        ImGui::PopID();
+        const ImVec2 mn = ImGui::GetItemRectMin();
+        const float iconSz = M::iconSize * dpi, gap = M::space2 * dpi;
+        const float textW = ImGui::CalcTextSize(label, nullptr, true).x;
+        const float x = mn.x + (w - (iconSz + gap + textW)) * 0.5f;
+        DrawIcon(ImGui::GetWindowDrawList(), icon, ImVec2(x, mn.y + (H - iconSz) * 0.5f), iconSz, detail::U32(text));
+        detail::DrawText(ImVec2(x + iconSz + gap, mn.y + (H - ImGui::GetFontSize()) * 0.5f), text, label, ImGui::FindRenderedTextEnd(label));
+    }
     PopTextStyle();
     ImGui::PopStyleVar();
     ImGui::PopStyleColor(4);
     return pressed;
 }
-inline bool PrimaryButton(const char* label)   { return ButtonEx(label, ButtonKind_Primary); }
-inline bool SecondaryButton(const char* label) { return ButtonEx(label, ButtonKind_Secondary); }
-inline bool GhostButton(const char* label)     { return ButtonEx(label, ButtonKind_Ghost); }
-inline bool DangerButton(const char* label)    { return ButtonEx(label, ButtonKind_Danger); }
+inline bool PrimaryButton(const char* label, Icon icon = Icon_None)   { return ButtonEx(label, ButtonKind_Primary, 0.0f, icon); }
+inline bool SecondaryButton(const char* label, Icon icon = Icon_None) { return ButtonEx(label, ButtonKind_Secondary, 0.0f, icon); }
+inline bool GhostButton(const char* label, Icon icon = Icon_None)     { return ButtonEx(label, ButtonKind_Ghost, 0.0f, icon); }
+inline bool DangerButton(const char* label, Icon icon = Icon_None)    { return ButtonEx(label, ButtonKind_Danger, 0.0f, icon); }
 
 // Ancho que ocupará un botón; útil para alinear grupos a la derecha con SameLineRight().
-inline float ButtonWidth(const char* label) {
+inline float ButtonWidth(const char* label, Icon icon) {
     PushTextStyle(TextStyle_Label);
-    const float w = ImGui::CalcTextSize(label, nullptr, true).x + 2 * M::space4 * Dpi();
+    float w = ImGui::CalcTextSize(label, nullptr, true).x + 2 * M::space4 * Dpi();
+    if (icon != Icon_None) w += (M::iconSize + M::space2) * Dpi();
     PopTextStyle();
     return w;
 }
@@ -813,11 +1003,13 @@ inline void Notice(Tone tone, const char* title, const char* body = nullptr, con
 // Modal de confirmación (docs/componentes/ConfirmModal.md).
 // Ábrelo con ImGui::OpenPopup(id) y llama a ConfirmModal() cada frame.
 // Devuelve ConfirmResult_Confirm, ConfirmResult_Cancel o ConfirmResult_None. Esc y B del mando cancelan.
+// Sin 'cancelLabel', el botón dice «Cancelar» en el idioma activo.
 // ---------------------------------------------------------------------------
 enum ConfirmResult { ConfirmResult_None, ConfirmResult_Confirm, ConfirmResult_Cancel };
 
 inline ConfirmResult ConfirmModal(const char* id, const char* title, const char* body, const char* confirmLabel,
-                                  bool destructive = true, const char* cancelLabel = "Cancelar") {
+                                  bool destructive = true, const char* cancelLabel = nullptr) {
+    if (!cancelLabel) cancelLabel = Tr("Cancelar", "Cancel", "Cancelar");
     const Palette& col = Col();
     const float dpi = Dpi();
     const ImGuiViewport* vp = ImGui::GetMainViewport();
@@ -905,6 +1097,22 @@ inline void BeginSidebar(const char* title) {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(M::space2 * dpi, M::space4 * dpi));
     ImGui::BeginChild("##sidebar", ImVec2(M::sidebarW * dpi, 0), ImGuiChildFlags_AlwaysUseWindowPadding, ImGuiWindowFlags_NoScrollbar);
     ImGui::PopStyleVar();
+
+    // Fondo del ítem seleccionado: se desliza hasta la posición que SidebarItem() guardó el frame anterior.
+    ImGuiStorage* st = ImGui::GetStateStorage();
+    const float target = st->GetFloat(detail::WindowKey("moderno.nav.target"), -1.0f);
+    if (target >= 0.0f) {
+        const ImGuiID keyY = detail::WindowKey("moderno.nav.y");
+        const float prev = st->GetFloat(keyY, -1.0f);
+        const float y = prev < 0.0f ? target : detail::Approach(prev, target, 0.25f);
+        st->SetFloat(keyY, y);
+        const ImVec2 cp = ImGui::GetCursorScreenPos(), win = ImGui::GetWindowPos();
+        const float w = ImGui::GetContentRegionAvail().x;
+        ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(cp.x, win.y + y), ImVec2(cp.x + w, win.y + y + M::navItemH * dpi),
+            detail::U32(Col().accentSoft), M::radiusLg * dpi);
+    }
+    st->SetFloat(detail::WindowKey("moderno.nav.target"), -1.0f);   // si ningún ítem queda seleccionado, no se dibuja
+
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(M::space2 * dpi, M::navItemGap * dpi));
     if (title) {
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + M::space3 * dpi);
@@ -915,29 +1123,46 @@ inline void BeginSidebar(const char* title) {
     }
 }
 
-// Ítem de navegación de 36 px. 'icon' es opcional (p. ej. un glifo de una fuente de íconos ya fusionada).
-inline bool SidebarItem(const char* label, bool selected, const char* icon = nullptr) {
-    const Palette& col = Col();
-    const float dpi = Dpi();
-    const ImVec2 p = ImGui::GetCursorScreenPos();
-    const ImVec2 size(ImGui::GetContentRegionAvail().x, M::navItemH * dpi);
-    const bool pressed = ImGui::InvisibleButton(label, size);
-    const bool hovered = ImGui::IsItemHovered();
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    if (selected || hovered)
-        dl->AddRectFilled(p, ImVec2(p.x + size.x, p.y + size.y), detail::U32(selected ? col.accentSoft : col.bgFrameHover), M::radiusLg * dpi);
-    const ImVec4& text = (selected || hovered) ? col.textPrimary : col.textSecondary;
-    float x = p.x + M::space3 * dpi;
-    PushTextStyle(TextStyle_Label);
-    const float ty = p.y + (size.y - ImGui::GetFontSize()) * 0.5f;
-    if (icon) {
-        detail::DrawText(ImVec2(x, ty), selected ? col.accent : text, icon);
-        x += M::iconSize * dpi + M::space2 * dpi;
+namespace detail {
+    inline bool SidebarItemImpl(const char* label, bool selected, const char* glyph, Icon icon) {
+        const Palette& col = Col();
+        const float dpi = Dpi();
+        const ImVec2 p = ImGui::GetCursorScreenPos();
+        const ImVec2 size(ImGui::GetContentRegionAvail().x, M::navItemH * dpi);
+        const bool pressed = ImGui::InvisibleButton(label, size);
+        const bool hovered = ImGui::IsItemHovered();
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        ImGuiStorage* st = ImGui::GetStateStorage();
+        if (selected) {
+            st->SetFloat(WindowKey("moderno.nav.target"), p.y - ImGui::GetWindowPos().y);
+            if (st->GetFloat(WindowKey("moderno.nav.y"), -1.0f) < 0.0f)   // primer frame: aún no hay fondo animado
+                dl->AddRectFilled(p, ImVec2(p.x + size.x, p.y + size.y), U32(col.accentSoft), M::radiusLg * dpi);
+        } else if (hovered) {
+            dl->AddRectFilled(p, ImVec2(p.x + size.x, p.y + size.y), U32(col.bgFrameHover), M::radiusLg * dpi);
+        }
+        const ImVec4& text = (selected || hovered) ? col.textPrimary : col.textSecondary;
+        const ImVec4& iconCol = selected ? col.accent : text;
+        float x = p.x + M::space3 * dpi;
+        PushTextStyle(TextStyle_Label);
+        const float ty = p.y + (size.y - ImGui::GetFontSize()) * 0.5f;
+        if (icon != Icon_None) {
+            const float isz = M::iconSize * dpi;
+            DrawIcon(dl, icon, ImVec2(x, p.y + (size.y - isz) * 0.5f), isz, U32(iconCol));
+            x += isz + M::space2 * dpi;
+        } else if (glyph) {
+            DrawText(ImVec2(x, ty), iconCol, glyph);
+            x += M::iconSize * dpi + M::space2 * dpi;
+        }
+        DrawText(ImVec2(x, ty), text, label, ImGui::FindRenderedTextEnd(label));
+        PopTextStyle();
+        return pressed;
     }
-    detail::DrawText(ImVec2(x, ty), text, label, ImGui::FindRenderedTextEnd(label));
-    PopTextStyle();
-    return pressed;
 }
+
+// Ítem de navegación de 36 px con un ícono del sistema (Icon_Monitor, Icon_Palette…).
+inline bool SidebarItem(const char* label, bool selected, Icon icon) { return detail::SidebarItemImpl(label, selected, nullptr, icon); }
+// Variante con un glifo de una fuente de íconos ya fusionada (opcional).
+inline bool SidebarItem(const char* label, bool selected, const char* glyph = nullptr) { return detail::SidebarItemImpl(label, selected, glyph, Icon_None); }
 
 inline void SidebarSeparator() {
     const float dpi = Dpi();
